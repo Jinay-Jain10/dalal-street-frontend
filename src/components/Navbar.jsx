@@ -29,6 +29,7 @@ const Navbar = () => {
             <Link to="/" style={navLink}>Home</Link>
             <Link to="/portfolio" style={navLink}>Portfolio</Link>
             <Link to="/watchlist" style={navLink}>Watchlist</Link>
+            <Link to="/battles" style={navLink}>Battles</Link>
             <span style={{ color: '#888', fontSize: '0.9rem' }}>Hi, {user?.name || 'User'}</span>
             <button onClick={handleLogout} style={logoutBtn}>Logout</button>
           </>
