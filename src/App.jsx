@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import api from './api/axios';
 import useAuthStore from "./store/authStore";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
@@ -16,6 +18,16 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
+  const { token, setUser } = useAuthStore();
+
+  useEffect(() => {
+    if (token) {
+      api.get('/auth/me')
+        .then((res) => setUser(res.data.user))
+        .catch(() => {});
+    }
+  }, []);
+  
   return (
     <BrowserRouter>
       <Navbar />
