@@ -169,14 +169,14 @@ const StockDetail = () => {
   ];
 
   const moreStats = [
-    { label: 'EPS', value: quote.eps ? `₹${quote.eps?.toFixed(2)}` : 'N/A' },
-    { label: 'P/B Ratio', value: quote.priceToBook?.toFixed(2) || 'N/A' },
-    { label: 'Beta', value: quote.beta?.toFixed(2) || 'N/A' },
-    { label: 'Dividend Yield', value: quote.dividendYield ? `${(quote.dividendYield * 100).toFixed(2)}%` : 'N/A' },
-    { label: 'Dividend Rate', value: quote.dividendRate ? `₹${quote.dividendRate}` : 'N/A' },
-    { label: 'Avg Volume', value: quote.avgVolume?.toLocaleString('en-IN') || 'N/A' },
+    { label: 'VWAP', value: quote.vwap ? `₹${quote.vwap?.toFixed(2)}` : 'N/A' },
+    { label: 'Face Value', value: quote.faceValue ? `₹${quote.faceValue}` : 'N/A' },
+    { label: 'Listing Date', value: quote.listingDate || 'N/A' },
+    { label: 'Basic Industry', value: quote.basicIndustry || 'N/A' },
     { label: 'Sector', value: quote.sector || 'N/A' },
     { label: 'Industry', value: quote.industry || 'N/A' },
+    { label: 'P/E Ratio', value: quote.pe?.toFixed(2) || 'N/A' },
+    { label: 'Avg Volume', value: quote.avgVolume?.toLocaleString('en-IN') || 'N/A' },
     { label: 'Website', value: quote.website ? '🔗 Visit' : 'N/A', link: quote.website },
   ];
 
