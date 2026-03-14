@@ -34,7 +34,7 @@ const Home = () => {
     try {
       const res = await api.get('/stocks/market/overview');
       setMarket(res.data);
-      setLastUpdated(res.data.fetchedAt); // use server timestamp
+      setLastUpdated(res.data.fetchedAt);
     } catch (err) {
       console.error(err);
     } finally {
@@ -68,14 +68,14 @@ const Home = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem' }}>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem' }}>
 
       {/* Hero */}
-      <div style={{ textAlign: 'center', padding: '3rem 0 2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>
+      <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+        <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 'bold', marginBottom: '0.75rem' }}>
           Dalal Street 🏦
         </h1>
-        <p style={{ color: '#888', fontSize: '1rem', marginBottom: '2rem', lineHeight: '1.6' }}>
+        <p style={{ color: '#888', fontSize: 'clamp(0.85rem, 2vw, 1rem)', marginBottom: '2rem', lineHeight: '1.6' }}>
           Trade NSE stocks with ₹1,00,000 virtual money. Track live prices, read AI-powered news sentiment, and compete with friends.
         </p>
 
@@ -85,7 +85,7 @@ const Home = () => {
             <input
               style={searchInput}
               type="text"
-              placeholder="Search stocks... (e.g. Reliance, TCS, Infosys)"
+              placeholder="Search stocks... (e.g. Reliance, TCS)"
               value={query}
               onChange={handleChange}
               onFocus={() => results.length > 0 && setShowDropdown(true)}
@@ -103,11 +103,11 @@ const Home = () => {
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   onClick={() => handleSelect(stock)}
                 >
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <span style={{ fontWeight: 'bold', color: '#00d09c', marginRight: '0.75rem' }}>{stock.symbol}</span>
-                    <span style={{ color: '#888', fontSize: '0.9rem' }}>{stock.name}</span>
+                    <span style={{ color: '#888', fontSize: '0.85rem' }}>{stock.name}</span>
                   </div>
-                  <span style={{ background: '#2a2a2a', color: '#aaa', padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem' }}>{stock.exchange}</span>
+                  <span style={{ background: '#2a2a2a', color: '#aaa', padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.75rem', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>{stock.exchange}</span>
                 </div>
               ))}
               <div style={{ padding: '0.75rem 1rem', color: '#555', fontSize: '0.8rem', textAlign: 'center' }}>
@@ -132,14 +132,14 @@ const Home = () => {
       ) : market ? (
         <>
           {/* Index Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
             {market.indices.map((idx) => {
               const isPos = idx.change >= 0;
               const color = isPos ? '#00d09c' : '#ff4444';
               return (
-                <div key={idx.name} style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.5rem' }}>
+                <div key={idx.name} style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
                   <div style={{ color: '#888', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{idx.name}</div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                  <div style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: 'bold', marginBottom: '0.25rem' }}>
                     {idx.last?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                   <div style={{ color, fontSize: '0.95rem' }}>
@@ -155,10 +155,10 @@ const Home = () => {
           </div>
 
           {/* Gainers and Losers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
 
             {/* Top Gainers */}
-            <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.5rem' }}>
+            <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#00d09c' }}>🚀 Top Gainers</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -190,7 +190,7 @@ const Home = () => {
             </div>
 
             {/* Top Losers */}
-            <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.5rem' }}>
+            <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#ff4444' }}>📉 Top Losers</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -223,10 +223,10 @@ const Home = () => {
           </div>
 
           {/* Market Status */}
-          <div style={{ textAlign: 'center', color: '#555', fontSize: '0.8rem' }}>
-  NSE data · Updates every 5 minutes during market hours (Mon–Fri, 9:15 AM – 3:30 PM IST)
-  {lastUpdated && <span style={{ marginLeft: '1rem' }}>· Last updated: {lastUpdated}</span>}
-</div>
+          <div style={{ textAlign: 'center', color: '#555', fontSize: '0.8rem', paddingBottom: '1rem' }}>
+            NSE data · Updates every 5 minutes during market hours (Mon–Fri, 9:15 AM – 3:30 PM IST)
+            {lastUpdated && <span style={{ marginLeft: '0.5rem' }}>· Last updated: {lastUpdated}</span>}
+          </div>
         </>
       ) : null}
     </div>
@@ -241,6 +241,7 @@ const searchInput = {
   borderRadius: '8px',
   color: '#e0e0e0',
   fontSize: '0.95rem',
+  boxSizing: 'border-box',
 };
 
 const dropdown = {

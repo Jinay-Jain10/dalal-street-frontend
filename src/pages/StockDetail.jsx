@@ -51,7 +51,6 @@ const StockDetail = () => {
     init();
   }, [symbol]);
 
-  // Subscribe to price store for live price updates
   useEffect(() => {
     subscribe([symbol]);
     return () => unsubscribe([symbol]);
@@ -79,9 +78,7 @@ const StockDetail = () => {
   const fetchNews = async (quoteData) => {
     setNewsLoading(true);
     try {
-      const name = quoteData?.name || decodeURIComponent(symbol)
-        .replace('.NS', '')
-        .replace('.BO', '');
+      const name = quoteData?.name || decodeURIComponent(symbol).replace('.NS', '').replace('.BO', '');
       const res = await api.get(`/news/${symbol}?name=${encodeURIComponent(name)}`);
       setNews(res.data.articles);
     } catch {
@@ -133,7 +130,6 @@ const StockDetail = () => {
   if (error) return <div style={centered}>{error}</div>;
   if (!quote) return null;
 
-  // Use live price from store, fall back to quote data
   const livePrice = prices[symbol]?.price ?? quote.price;
   const liveChange = prices[symbol]?.change ?? quote.change;
   const liveChangePercent = prices[symbol]?.changePercent ?? quote.changePercent;
@@ -146,10 +142,7 @@ const StockDetail = () => {
     return '#888';
   };
 
-  const filteredNews = activeFilter === 'ALL'
-    ? news
-    : news.filter((a) => a.sentiment === activeFilter);
-
+  const filteredNews = activeFilter === 'ALL' ? news : news.filter((a) => a.sentiment === activeFilter);
   const sentimentCounts = {
     POSITIVE: news.filter((a) => a.sentiment === 'POSITIVE').length,
     NEGATIVE: news.filter((a) => a.sentiment === 'NEGATIVE').length,
@@ -163,8 +156,8 @@ const StockDetail = () => {
     { label: "Day's Low", value: `₹${quote.low?.toFixed(2)}` },
     { label: '52W High', value: `₹${quote.fiftyTwoWeekHigh?.toFixed(2)}` },
     { label: '52W Low', value: `₹${quote.fiftyTwoWeekLow?.toFixed(2)}` },
-    { label: 'Market Cap', value: `₹${(quote.marketCap / 1e7).toFixed(0)} Cr` },
-    { label: 'Volume', value: quote.volume?.toLocaleString('en-IN') },
+    { label: 'Market Cap', value: quote.marketCap ? `₹${(quote.marketCap / 1e7).toFixed(0)} Cr` : 'N/A' },
+    { label: 'Volume', value: quote.volume?.toLocaleString('en-IN') || 'N/A' },
     { label: 'P/E Ratio', value: quote.pe ? parseFloat(quote.pe).toFixed(2) : 'N/A' },
   ];
 
@@ -181,18 +174,18 @@ const StockDetail = () => {
   ];
 
   return (
-    <div style={container}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1rem' }}>
 
       {/* Header */}
-      <div style={header}>
-        <div>
-          <h1 style={stockTitle}>{quote.name}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h1 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: 'bold', marginBottom: '0.5rem' }}>{quote.name}</h1>
           <span style={symbolTag}>{quote.symbol}</span>
           {quote.sector && <span style={sectorTag}>{quote.sector}</span>}
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={priceText}>₹{livePrice?.toFixed(2)}</div>
-          <div style={{ color: changeColor, fontSize: '1rem' }}>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 'bold' }}>₹{livePrice?.toFixed(2)}</div>
+          <div style={{ color: changeColor, fontSize: '0.95rem' }}>
             {isPositive ? '▲' : '▼'} ₹{Math.abs(liveChange)?.toFixed(2)} ({Math.abs(liveChangePercent)?.toFixed(2)}%)
           </div>
           {lastUpdated && (
@@ -204,13 +197,13 @@ const StockDetail = () => {
       </div>
 
       {/* Buy/Sell */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
         {token ? (
           <>
             <button style={buyBtn} onClick={() => { setModal('buy'); setTradeMsg(''); setQuantity(1); }}>Buy</button>
             <button style={sellBtn} onClick={() => { setModal('sell'); setTradeMsg(''); setQuantity(1); }}>Sell</button>
             <button style={watchlistBtn} onClick={handleWatchlist}>
-              {inWatchlist ? '★ Watchlisted' : '☆ Add to Watchlist'}
+              {inWatchlist ? '★ Watchlisted' : '☆ Watchlist'}
             </button>
             {watchlistMsg && <span style={{ color: '#00d09c', fontSize: '0.85rem' }}>{watchlistMsg}</span>}
           </>
@@ -231,10 +224,8 @@ const StockDetail = () => {
                 <h3 style={{ marginBottom: '0.75rem', color: '#00d09c' }}>
                   {modal.tradeType === 'buy' ? 'Purchase Successful!' : 'Sale Successful!'}
                 </h3>
-                <p style={{ color: '#aaa', marginBottom: '1.5rem', lineHeight: '1.6' }}>
-                  {modal.message}
-                </p>
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <p style={{ color: '#aaa', marginBottom: '1.5rem', lineHeight: '1.6' }}>{modal.message}</p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button style={buyBtn} onClick={() => navigate('/portfolio')}>View Portfolio</button>
                   <button style={cancelBtn} onClick={() => setModal(null)}>Continue Trading</button>
                 </div>
@@ -248,16 +239,10 @@ const StockDetail = () => {
                   onChange={(e) => setQuantity(e.target.value)}
                   style={modalInput} placeholder="Quantity"
                 />
-                <p style={{ color: '#aaa', marginBottom: '1rem' }}>
-                  Total: ₹{(livePrice * quantity).toFixed(2)}
-                </p>
+                <p style={{ color: '#aaa', marginBottom: '1rem' }}>Total: ₹{(livePrice * quantity).toFixed(2)}</p>
                 {tradeMsg && <p style={{ color: '#ff4444', marginBottom: '1rem' }}>{tradeMsg}</p>}
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button
-                    style={modal === 'buy' ? buyBtn : sellBtn}
-                    onClick={handleTrade}
-                    disabled={tradeLoading}
-                  >
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <button style={modal === 'buy' ? buyBtn : sellBtn} onClick={handleTrade} disabled={tradeLoading}>
                     {tradeLoading ? 'Processing...' : `Confirm ${modal === 'buy' ? 'Buy' : 'Sell'}`}
                   </button>
                   <button style={cancelBtn} onClick={() => setModal(null)}>Cancel</button>
@@ -270,7 +255,7 @@ const StockDetail = () => {
 
       {/* Essential Stats */}
       <div style={section}>
-        <div style={statsGrid}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
           {essentialStats.map((stat) => (
             <div key={stat.label} style={statCard}>
               <div style={statLabel}>{stat.label}</div>
@@ -282,14 +267,12 @@ const StockDetail = () => {
           {showMoreStats ? '▲ Hide Details' : '▼ More Details'}
         </button>
         {showMoreStats && (
-          <div style={{ ...statsGrid, marginTop: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginTop: '1rem' }}>
             {moreStats.map((stat) => (
               <div key={stat.label} style={statCard}>
                 <div style={statLabel}>{stat.label}</div>
                 {stat.link ? (
-                  <a href={stat.link} target="_blank" rel="noreferrer" style={{ color: '#00d09c', fontSize: '0.95rem' }}>
-                    {stat.value}
-                  </a>
+                  <a href={stat.link} target="_blank" rel="noreferrer" style={{ color: '#00d09c', fontSize: '0.95rem' }}>{stat.value}</a>
                 ) : (
                   <div style={statValue}>{stat.value}</div>
                 )}
@@ -301,7 +284,7 @@ const StockDetail = () => {
 
       {/* Chart */}
       <div style={section}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <h2 style={sectionTitle}>Price History</h2>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {RANGES.map((r) => (
@@ -309,7 +292,7 @@ const StockDetail = () => {
             ))}
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={250}>
           <AreaChart data={history}>
             <defs>
               <linearGradient id="colorClose" x1="0" y1="0" x2="0" y2="1">
@@ -317,8 +300,8 @@ const StockDetail = () => {
                 <stop offset="95%" stopColor="#00d09c" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
-            <YAxis tick={{ fill: '#888', fontSize: 11 }} domain={['auto', 'auto']} tickFormatter={(v) => `₹${v}`} />
+            <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
+            <YAxis tick={{ fill: '#888', fontSize: 10 }} domain={['auto', 'auto']} tickFormatter={(v) => `₹${v}`} width={60} />
             <Tooltip
               contentStyle={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px' }}
               labelStyle={{ color: '#888' }}
@@ -339,22 +322,19 @@ const StockDetail = () => {
         </div>
         {showNews && (
           <>
-            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               {['ALL', 'POSITIVE', 'NEGATIVE', 'NEUTRAL'].map((f) => (
                 <button
                   key={f}
                   onClick={() => setActiveFilter(f)}
                   style={{
-                    padding: '0.3rem 0.9rem',
+                    padding: '0.3rem 0.75rem',
                     borderRadius: '20px',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: activeFilter === f ? 'bold' : 'normal',
                     background: activeFilter === f
-                      ? f === 'POSITIVE' ? '#00d09c'
-                        : f === 'NEGATIVE' ? '#ff4444'
-                        : f === 'NEUTRAL' ? '#888'
-                        : '#00d09c'
+                      ? f === 'POSITIVE' ? '#00d09c' : f === 'NEGATIVE' ? '#ff4444' : f === 'NEUTRAL' ? '#888' : '#00d09c'
                       : '#2a2a2a',
                     color: activeFilter === f ? '#000' : '#aaa',
                     fontSize: '0.8rem',
@@ -369,7 +349,7 @@ const StockDetail = () => {
             ) : filteredNews.length === 0 ? (
               <p style={{ color: '#888' }}>No {activeFilter !== 'ALL' ? activeFilter.toLowerCase() : ''} news found.</p>
             ) : (
-              <div style={newsGrid}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                 {filteredNews.map((article, i) => (
                   <a key={i} href={article.url} target="_blank" rel="noreferrer" style={newsCard}>
                     {article.urlToImage && (
@@ -387,9 +367,7 @@ const StockDetail = () => {
                       </span>
                       <div style={newsTitle}>{article.title}</div>
                       <div style={newsMeta}>
-                        {article.source} · {new Date(article.publishedAt).toLocaleDateString('en-IN', {
-                          day: 'numeric', month: 'short', year: 'numeric',
-                        })}
+                        {article.source} · {new Date(article.publishedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
                     </div>
                   </a>
@@ -403,34 +381,28 @@ const StockDetail = () => {
   );
 };
 
-const container = { maxWidth: '1000px', margin: '0 auto', padding: '2rem' };
 const centered = { textAlign: 'center', padding: '4rem', color: '#888' };
-const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' };
-const stockTitle = { fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' };
 const symbolTag = { background: '#2a2a2a', color: '#aaa', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.85rem', marginRight: '0.5rem' };
 const sectorTag = { background: '#1a2a2a', color: '#00d09c', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.85rem' };
-const priceText = { fontSize: '2rem', fontWeight: 'bold' };
-const section = { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem' };
+const section = { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem' };
 const sectionTitle = { fontSize: '1.1rem', fontWeight: 'bold' };
-const statsGrid = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' };
-const statCard = { background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '0.85rem 1rem' };
+const statCard = { background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '0.75rem' };
 const statLabel = { color: '#888', fontSize: '0.78rem', marginBottom: '0.3rem' };
-const statValue = { fontWeight: 'bold', fontSize: '0.95rem' };
+const statValue = { fontWeight: 'bold', fontSize: '0.9rem' };
 const toggleBtn = { marginTop: '1rem', background: 'transparent', border: '1px solid #2a2a2a', color: '#888', padding: '0.4rem 1rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' };
 const rangeBtn = { background: 'transparent', border: '1px solid #2a2a2a', color: '#888', padding: '0.3rem 0.6rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' };
 const activeRangeBtn = { ...rangeBtn, background: '#00d09c', color: '#000', border: '1px solid #00d09c', fontWeight: 'bold' };
-const newsGrid = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' };
 const newsCard = { background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: '10px', textDecoration: 'none', color: 'inherit', overflow: 'hidden', display: 'block' };
 const newsImage = { width: '100%', height: '140px', objectFit: 'cover' };
 const newsTitle = { fontSize: '0.85rem', lineHeight: '1.4', marginBottom: '0.5rem', color: '#e0e0e0' };
 const newsMeta = { color: '#666', fontSize: '0.75rem' };
 const sentimentBadge = { padding: '0.2rem 0.5rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 'bold' };
-const buyBtn = { padding: '0.7rem 2rem', background: '#00d09c', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' };
-const sellBtn = { padding: '0.7rem 2rem', background: 'transparent', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' };
-const cancelBtn = { padding: '0.7rem 2rem', background: 'transparent', color: '#888', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer' };
-const modalOverlay = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalBox = { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '2rem', width: '100%', maxWidth: '400px' };
-const modalInput = { width: '100%', padding: '0.8rem', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '1rem', display: 'block' };
-const watchlistBtn = { padding: '0.7rem 1.25rem', background: 'transparent', color: '#f0c040', border: '1px solid #f0c040', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem' };
+const buyBtn = { padding: '0.65rem 1.5rem', background: '#00d09c', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem' };
+const sellBtn = { padding: '0.65rem 1.5rem', background: 'transparent', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem' };
+const cancelBtn = { padding: '0.65rem 1.5rem', background: 'transparent', color: '#888', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer' };
+const modalOverlay = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' };
+const modalBox = { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.5rem', width: '100%', maxWidth: '400px' };
+const modalInput = { width: '100%', padding: '0.8rem', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '1rem', display: 'block', boxSizing: 'border-box' };
+const watchlistBtn = { padding: '0.65rem 1rem', background: 'transparent', color: '#f0c040', border: '1px solid #f0c040', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' };
 
 export default StockDetail;

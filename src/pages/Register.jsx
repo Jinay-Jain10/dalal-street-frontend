@@ -79,12 +79,6 @@ if (token) {
   );
 };
 
-const container = {
-  minHeight: '90vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
 
 const card = {
   background: '#1a1a1a',
@@ -106,6 +100,14 @@ const subtitle = {
   marginBottom: '1.5rem',
 };
 
+const container = {
+  minHeight: '90vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '1rem',
+};
+
 const input = {
   width: '100%',
   padding: '0.8rem 1rem',
@@ -116,6 +118,7 @@ const input = {
   color: '#e0e0e0',
   fontSize: '0.95rem',
   display: 'block',
+  boxSizing: 'border-box',
 };
 
 const btn = {

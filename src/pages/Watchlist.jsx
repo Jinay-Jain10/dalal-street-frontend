@@ -13,7 +13,7 @@ const Watchlist = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const debounceRef = useRef(null);
 
-  const { prices, subscribe, unsubscribe,lastUpdated } = usePriceStore();
+  const { prices, subscribe, unsubscribe, lastUpdated } = usePriceStore();
 
   useEffect(() => {
     fetchWatchlist();
@@ -78,33 +78,30 @@ const Watchlist = () => {
   if (loading) return <div style={centered}>Loading watchlist...</div>;
 
   return (
-    <div style={container}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={pageTitle}>My Watchlist</h1>
-        
-        {prices && Object.keys(prices).length > 0 && (
-          <p style={{ color: '#555', fontSize: '0.8rem' }}>
-            Last updated: {new Date().toLocaleTimeString('en-IN')}
-          </p>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <h1 style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)', fontWeight: 'bold' }}>My Watchlist</h1>
+        {lastUpdated && (
+          <p style={{ color: '#555', fontSize: '0.8rem' }}>Last updated: {lastUpdated}</p>
         )}
       </div>
 
       {/* Search to add */}
-      <div style={{ position: 'relative', maxWidth: '500px', marginBottom: '2rem' }}>
+      <div style={{ position: 'relative', maxWidth: '500px', marginBottom: '1.5rem' }}>
         <input
-          style={searchInput}
+          style={{ width: '100%', padding: '0.85rem 1rem', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#e0e0e0', fontSize: '0.95rem', boxSizing: 'border-box' }}
           type="text"
-          placeholder="Search and add stocks to watchlist..."
+          placeholder="Search and add stocks..."
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
         />
-        {searchLoading && <span style={spinner}>⏳</span>}
+        {searchLoading && <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' }}>⏳</span>}
         {showDropdown && searchResults.length > 0 && (
-          <div style={dropdown}>
+          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', zIndex: 100, maxHeight: '280px', overflowY: 'auto' }}>
             {searchResults.map((stock) => (
               <div
                 key={stock.symbol}
-                style={dropdownItem}
+                style={{ padding: '0.85rem 1rem', cursor: 'pointer', borderBottom: '1px solid #222' }}
                 onMouseEnter={(e) => e.currentTarget.style.background = '#222'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 onClick={() => addToWatchlist(stock)}
@@ -119,69 +116,58 @@ const Watchlist = () => {
 
       {/* Watchlist table */}
       {watchlist.length === 0 ? (
-        <div style={emptyState}>
+        <div style={{ padding: '3rem', textAlign: 'center', color: '#888' }}>
           <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Your watchlist is empty</p>
           <p style={{ color: '#666' }}>Search for stocks above to add them here</p>
         </div>
       ) : (
-        <div style={section}>
-          <table style={table}>
-            <thead>
-              <tr>
-                {['Stock', 'Price', 'Change', 'High', 'Low', 'Volume', ''].map((h) => (
-                  <th key={h} style={th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {watchlist.map((item) => {
-                const q = prices[item.symbol];
-                const isPositive = q?.change >= 0;
-                const changeColor = isPositive ? '#00d09c' : '#ff4444';
-                return (
-                  <tr
-                    key={item.symbol}
-                    style={tr}
-                    onClick={() => navigate(`/stock/${encodeURIComponent(item.symbol)}`)}
-                  >
-                    <td style={td}>
-                      <div style={{ color: '#00d09c', fontWeight: 'bold' }}>{item.symbol}</div>
-                      <div style={{ color: '#666', fontSize: '0.8rem' }}>{item.company_name}</div>
-                    </td>
-                    <td style={td}>{q ? `₹${q.price?.toFixed(2)}` : '—'}</td>
-                    <td style={{ ...td, color: changeColor }}>
-                      {q ? `${isPositive ? '▲' : '▼'} ${Math.abs(q.changePercent)?.toFixed(2)}%` : '—'}
-                    </td>
-                    <td style={td}>{q ? `₹${q.high?.toFixed(2)}` : '—'}</td>
-                    <td style={td}>{q ? `₹${q.low?.toFixed(2)}` : '—'}</td>
-                    <td style={td}>{q ? q.volume?.toLocaleString('en-IN') : '—'}</td>
-                    <td style={td} onClick={(e) => e.stopPropagation()}>
-                      <button style={removeBtn} onClick={() => removeFromWatchlist(item.symbol)}>✕</button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
+              <thead>
+                <tr>
+                  {['Stock', 'Price', 'Change', 'High', 'Low', 'Volume', ''].map((h) => (
+                    <th key={h} style={{ padding: '0.85rem 1rem', textAlign: 'left', color: '#888', fontSize: '0.85rem', borderBottom: '1px solid #2a2a2a', fontWeight: 'normal', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {watchlist.map((item) => {
+                  const q = prices[item.symbol];
+                  const isPositive = q?.change >= 0;
+                  const changeColor = isPositive ? '#00d09c' : '#ff4444';
+                  return (
+                    <tr
+                      key={item.symbol}
+                      style={{ transition: 'background 0.15s', cursor: 'pointer' }}
+                      onClick={() => navigate(`/stock/${encodeURIComponent(item.symbol)}`)}
+                    >
+                      <td style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                        <div style={{ color: '#00d09c', fontWeight: 'bold' }}>{item.symbol}</div>
+                        <div style={{ color: '#666', fontSize: '0.8rem' }}>{item.company_name}</div>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{q ? `₹${q.price?.toFixed(2)}` : '—'}</td>
+                      <td style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.9rem', whiteSpace: 'nowrap', color: changeColor }}>
+                        {q ? `${isPositive ? '▲' : '▼'} ${Math.abs(q.changePercent)?.toFixed(2)}%` : '—'}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{q ? `₹${q.high?.toFixed(2)}` : '—'}</td>
+                      <td style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{q ? `₹${q.low?.toFixed(2)}` : '—'}</td>
+                      <td style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{q ? q.volume?.toLocaleString('en-IN') : '—'}</td>
+                      <td style={{ padding: '0.85rem 1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.9rem' }} onClick={(e) => e.stopPropagation()}>
+                        <button style={{ background: 'transparent', border: '1px solid #333', color: '#666', borderRadius: '4px', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => removeFromWatchlist(item.symbol)}>✕</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-const container = { maxWidth: '1100px', margin: '0 auto', padding: '2rem' };
 const centered = { textAlign: 'center', padding: '4rem', color: '#888' };
-const pageTitle = { fontSize: '1.8rem', fontWeight: 'bold' };
-const searchInput = { width: '100%', padding: '0.85rem 1rem', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#e0e0e0', fontSize: '0.95rem' };
-const spinner = { position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' };
-const dropdown = { position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', zIndex: 100, maxHeight: '280px', overflowY: 'auto' };
-const dropdownItem = { padding: '0.85rem 1rem', cursor: 'pointer', borderBottom: '1px solid #222' };
-const section = { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', overflow: 'hidden' };
-const emptyState = { padding: '3rem', textAlign: 'center', color: '#888' };
-const table = { width: '100%', borderCollapse: 'collapse' };
-const th = { padding: '1rem', textAlign: 'left', color: '#888', fontSize: '0.85rem', borderBottom: '1px solid #2a2a2a', fontWeight: 'normal' };
-const td = { padding: '1rem', borderBottom: '1px solid #1a1a1a', fontSize: '0.95rem', cursor: 'pointer' };
-const tr = { transition: 'background 0.15s' };
-const removeBtn = { background: 'transparent', border: '1px solid #333', color: '#666', borderRadius: '4px', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.85rem' };
 
 export default Watchlist;
