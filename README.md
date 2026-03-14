@@ -19,6 +19,22 @@ There is no other free Indian stock market app that has this feature.
 
 ---
 
+## Screenshots
+
+| Home | Stock Detail |
+|------|-------------|
+| ![Home](screenshots/home.png) | ![Stock](screenshots/stock1.png) |
+
+| Portfolio | Battles |
+|-----------|---------|
+| ![Portfolio](screenshots/portfolio.png) | ![Battles](screenshots/battles.png) |
+
+| Battle Detail — Leaderboard | Battle Detail — Screen |
+|------|-------------|
+| ![Leaderboard](screenshots/battle_leaderboard.png) | ![Screen](screenshots/battle_screen.png) |
+
+---
+
 ## Features
 
 ### Stock Battles (USP)
