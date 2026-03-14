@@ -41,6 +41,17 @@ const BattleDetail = () => {
 
   useEffect(() => {
     init();
+  
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/battles/${id}/leaderboard`);
+        setLeaderboard(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 30000);
+  
+    return () => clearInterval(interval);
   }, [id]);
 
   // Subscribe portfolio holding symbols to price store
@@ -83,14 +94,14 @@ const BattleDetail = () => {
     setLoading(false);
   };
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = setInterval(async () => {
     try {
       const res = await api.get(`/battles/${id}/leaderboard`);
       setLeaderboard(res.data);
     } catch (err) {
       setError('Failed to load battle');
     }
-  };
+  },10*60*1000);
 
   const fetchPortfolio = async () => {
     try {
