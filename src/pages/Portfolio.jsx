@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import useAuthStore from '../store/authStore';
+import usePriceStore from '../store/priceStore';
 
 const Portfolio = () => {
   const navigate = useNavigate();
-  const { user, setUser } = useAuthStore();
+  const { setUser } = useAuthStore();
   const [portfolio, setPortfolio] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('holdings');
-  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const { prices, subscribe, unsubscribe,lastUpdated } = usePriceStore();
 
   useEffect(() => {
     fetchPortfolio();
@@ -18,24 +20,22 @@ const Portfolio = () => {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchPortfolio(true);
-    }, 30000);
-  
-    return () => clearInterval(interval);
-  }, []);
+    if (!portfolio || portfolio.holdings.length === 0) return;
+    const symbols = portfolio.holdings.map((h) => h.symbol);
+    subscribe(symbols);
+    return () => unsubscribe(symbols);
+  }, [portfolio]);
 
-  const fetchPortfolio = async (silent = false) => {
-    if (!silent) setLoading(true);
+  const fetchPortfolio = async () => {
+    setLoading(true);
     try {
       const res = await api.get('/portfolio');
       setPortfolio(res.data);
-      setLastUpdated(new Date().toLocaleTimeString('en-IN'));
       setUser(res.data.user);
     } catch (err) {
       console.error(err);
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -51,7 +51,26 @@ const Portfolio = () => {
   if (loading) return <div style={centered}>Loading portfolio...</div>;
   if (!portfolio) return <div style={centered}>Failed to load portfolio.</div>;
 
-  const totalPnl = parseFloat(portfolio.summary.total_pnl);
+  // Calculate live values using prices from store
+  const holdingsWithLivePrices = portfolio.holdings.map((h) => {
+    const livePrice = prices[h.symbol]?.price || parseFloat(h.current_price);
+    const currentValue = livePrice * h.quantity;
+    const totalInvested = parseFloat(h.avg_buy_price) * h.quantity;
+    const pnl = currentValue - totalInvested;
+    const pnlPercent = (pnl / totalInvested) * 100;
+    return {
+      ...h,
+      live_price: livePrice,
+      live_current_value: currentValue,
+      live_pnl: pnl,
+      live_pnl_percent: pnlPercent,
+    };
+  });
+
+  // Recalculate summary from live prices
+  const totalCurrentValue = holdingsWithLivePrices.reduce((sum, h) => sum + h.live_current_value, 0);
+  const totalInvested = holdingsWithLivePrices.reduce((sum, h) => sum + parseFloat(h.avg_buy_price) * h.quantity, 0);
+  const totalPnl = totalCurrentValue - totalInvested;
   const pnlColor = totalPnl >= 0 ? '#00d09c' : '#ff4444';
 
   return (
@@ -66,15 +85,21 @@ const Portfolio = () => {
       <div style={summaryGrid}>
         <div style={summaryCard}>
           <div style={summaryLabel}>Available Balance</div>
-          <div style={summaryValue}>₹{parseFloat(portfolio.user.virtual_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+          <div style={summaryValue}>
+            ₹{parseFloat(portfolio.user.virtual_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </div>
         </div>
         <div style={summaryCard}>
           <div style={summaryLabel}>Total Invested</div>
-          <div style={summaryValue}>₹{parseFloat(portfolio.summary.total_invested).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+          <div style={summaryValue}>
+            ₹{totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </div>
         </div>
         <div style={summaryCard}>
           <div style={summaryLabel}>Current Value</div>
-          <div style={summaryValue}>₹{parseFloat(portfolio.summary.total_current_value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+          <div style={summaryValue}>
+            ₹{totalCurrentValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </div>
         </div>
         <div style={{ ...summaryCard, borderColor: pnlColor + '44' }}>
           <div style={summaryLabel}>Total P&L</div>
@@ -103,7 +128,7 @@ const Portfolio = () => {
       {/* Holdings Tab */}
       {activeTab === 'holdings' && (
         <div style={section}>
-          {portfolio.holdings.length === 0 ? (
+          {holdingsWithLivePrices.length === 0 ? (
             <div style={emptyState}>
               <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No holdings yet</p>
               <p style={{ color: '#666', marginBottom: '1.5rem' }}>Search for a stock and make your first trade</p>
@@ -119,9 +144,8 @@ const Portfolio = () => {
                 </tr>
               </thead>
               <tbody>
-                {portfolio.holdings.map((h) => {
-                  const pnl = parseFloat(h.pnl);
-                  const color = pnl >= 0 ? '#00d09c' : '#ff4444';
+                {holdingsWithLivePrices.map((h) => {
+                  const color = h.live_pnl >= 0 ? '#00d09c' : '#ff4444';
                   return (
                     <tr
                       key={h.symbol}
@@ -134,10 +158,14 @@ const Portfolio = () => {
                       </td>
                       <td style={td}>{h.quantity}</td>
                       <td style={td}>₹{parseFloat(h.avg_buy_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td style={td}>₹{parseFloat(h.current_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td style={td}>₹{parseFloat(h.current_value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td style={{ ...td, color }}>{pnl >= 0 ? '+' : ''}₹{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td style={{ ...td, color }}>{pnl >= 0 ? '▲' : '▼'} {Math.abs(parseFloat(h.pnl_percent))}%</td>
+                      <td style={td}>₹{h.live_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td style={td}>₹{h.live_current_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ ...td, color }}>
+                        {h.live_pnl >= 0 ? '+' : ''}₹{h.live_pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td style={{ ...td, color }}>
+                        {h.live_pnl >= 0 ? '▲' : '▼'} {Math.abs(h.live_pnl_percent).toFixed(2)}%
+                      </td>
                     </tr>
                   );
                 })}
@@ -151,9 +179,7 @@ const Portfolio = () => {
       {activeTab === 'transactions' && (
         <div style={section}>
           {transactions.length === 0 ? (
-            <div style={emptyState}>
-              <p>No transactions yet.</p>
-            </div>
+            <div style={emptyState}><p>No transactions yet.</p></div>
           ) : (
             <table style={table}>
               <thead>

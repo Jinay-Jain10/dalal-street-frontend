@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import api from '../api/axios';
 import useAuthStore from '../store/authStore';
+import usePriceStore from '../store/priceStore';
 
 const RANGES = ['1W', '1M', '3M', '1Y', '5Y'];
 
@@ -30,57 +31,41 @@ const StockDetail = () => {
   const [tradeLoading, setTradeLoading] = useState(false);
 
   const [watchlistMsg, setWatchlistMsg] = useState('');
-const [inWatchlist, setInWatchlist] = useState(false);
-const [lastUpdated, setLastUpdated] = useState(null);
-const [initialLoading, setInitialLoading] = useState(true);
+  const [inWatchlist, setInWatchlist] = useState(false);
 
-useEffect(() => {
-  const init = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get(`/stocks/${symbol}`);
-      setQuote(res.data.data);
-      setLastUpdated(new Date().toLocaleTimeString('en-IN'));
-      fetchNews(res.data.data);
-    } catch {
-      setError('Failed to load stock data. Please check the symbol.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { prices, subscribe, unsubscribe, lastUpdated } = usePriceStore();
 
-  init();
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/stocks/${symbol}`);
+        setQuote(res.data.data);
+        fetchNews(res.data.data);
+      } catch {
+        setError('Failed to load stock data. Please check the symbol.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+  }, [symbol]);
 
-  const interval = setInterval(async () => {
-    try {
-      const res = await api.get(`/stocks/${symbol}`);
-      setQuote(res.data.data);
-      setLastUpdated(new Date().toLocaleTimeString('en-IN'));
-    } catch {
-      console.error('Price refresh failed');
-    }
-  }, 30000);
-
-  return () => clearInterval(interval);
-}, [symbol]);
+  // Subscribe to price store for live price updates
+  useEffect(() => {
+    subscribe([symbol]);
+    return () => unsubscribe([symbol]);
+  }, [symbol]);
 
   useEffect(() => { fetchHistory(); }, [symbol, range]);
 
-  // const fetchQuote = async () => {
-  //   if (initialLoading) setLoading(true);
-  //   setError('');
-  //   try {
-  //     const res = await api.get(`/stocks/${symbol}`);
-  //     setQuote(res.data.data);
-  //     setLastUpdated(new Date().toLocaleTimeString('en-IN'));
-  //     return res.data.data;
-  //   } catch {
-  //     setError('Failed to load stock data. Please check the symbol.');
-  //   } finally {
-  //     setLoading(false);
-  //     setInitialLoading(false);
-  //   }
-  // };
+  useEffect(() => {
+    if (!token) return;
+    api.get('/watchlist').then((res) => {
+      const found = res.data.watchlist.some((w) => w.symbol === symbol);
+      setInWatchlist(found);
+    }).catch(() => {});
+  }, [symbol, token]);
 
   const fetchHistory = async () => {
     try {
@@ -117,9 +102,7 @@ useEffect(() => {
         : { symbol, quantity: parseInt(quantity) };
       const res = await api.post(endpoint, body);
       const type = modal;
-      setModal('success');
       setTradeMsg(res.data.message);
-      // store what type of trade it was for the success screen
       setModal({ type: 'success', tradeType: type, message: res.data.message });
     } catch (err) {
       setTradeMsg(err.response?.data?.message || 'Trade failed');
@@ -146,15 +129,15 @@ useEffect(() => {
     }
   };
 
-  useEffect(() => {
-    if (!token) return;
-    api.get('/watchlist').then((res) => {
-      const found = res.data.watchlist.some((w) => w.symbol === symbol);
-      setInWatchlist(found);
-    }).catch(() => {});
-  }, [symbol, token]);
+  if (loading) return <div style={centered}>Loading...</div>;
+  if (error) return <div style={centered}>{error}</div>;
+  if (!quote) return null;
 
-  const isPositive = quote?.change >= 0;
+  // Use live price from store, fall back to quote data
+  const livePrice = prices[symbol]?.price ?? quote.price;
+  const liveChange = prices[symbol]?.change ?? quote.change;
+  const liveChangePercent = prices[symbol]?.changePercent ?? quote.changePercent;
+  const isPositive = liveChange >= 0;
   const changeColor = isPositive ? '#00d09c' : '#ff4444';
 
   const sentimentColor = (s) => {
@@ -172,10 +155,6 @@ useEffect(() => {
     NEGATIVE: news.filter((a) => a.sentiment === 'NEGATIVE').length,
     NEUTRAL: news.filter((a) => a.sentiment === 'NEUTRAL').length,
   };
-
-  if (loading) return <div style={centered}>Loading...</div>;
-  if (error) return <div style={centered}>{error}</div>;
-  if (!quote) return null;
 
   const essentialStats = [
     { label: 'Open', value: `₹${quote.open?.toFixed(2)}` },
@@ -212,90 +191,82 @@ useEffect(() => {
           {quote.sector && <span style={sectorTag}>{quote.sector}</span>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={priceText}>₹{quote.price?.toFixed(2)}</div>
+          <div style={priceText}>₹{livePrice?.toFixed(2)}</div>
           <div style={{ color: changeColor, fontSize: '1rem' }}>
-            {isPositive ? '▲' : '▼'} ₹{Math.abs(quote.change)?.toFixed(2)} ({Math.abs(quote.changePercent)?.toFixed(2)}%)
+            {isPositive ? '▲' : '▼'} ₹{Math.abs(liveChange)?.toFixed(2)} ({Math.abs(liveChangePercent)?.toFixed(2)}%)
           </div>
           {lastUpdated && (
-  <div style={{ color: '#555', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-    Last updated: {lastUpdated}
-  </div>
-)}
+            <div style={{ color: '#555', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Last updated: {lastUpdated}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Buy/Sell */}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'center' }}>
-  {token ? (
-    <>
-      <button style={buyBtn} onClick={() => { setModal('buy'); setTradeMsg(''); setQuantity(1); }}>Buy</button>
-      <button style={sellBtn} onClick={() => { setModal('sell'); setTradeMsg(''); setQuantity(1); }}>Sell</button>
-      <button style={watchlistBtn} onClick={handleWatchlist}>
-        {inWatchlist ? '★ Watchlisted' : '☆ Add to Watchlist'}
-      </button>
-      {watchlistMsg && <span style={{ color: '#00d09c', fontSize: '0.85rem' }}>{watchlistMsg}</span>}
-    </>
-  ) : (
-    <button style={buyBtn} onClick={() => navigate('/login')}>Login to Trade</button>
-  )}
-</div>
+        {token ? (
+          <>
+            <button style={buyBtn} onClick={() => { setModal('buy'); setTradeMsg(''); setQuantity(1); }}>Buy</button>
+            <button style={sellBtn} onClick={() => { setModal('sell'); setTradeMsg(''); setQuantity(1); }}>Sell</button>
+            <button style={watchlistBtn} onClick={handleWatchlist}>
+              {inWatchlist ? '★ Watchlisted' : '☆ Add to Watchlist'}
+            </button>
+            {watchlistMsg && <span style={{ color: '#00d09c', fontSize: '0.85rem' }}>{watchlistMsg}</span>}
+          </>
+        ) : (
+          <button style={buyBtn} onClick={() => navigate('/login')}>Login to Trade</button>
+        )}
+      </div>
 
       {/* Trade Modal */}
       {modal && (
-  <div style={modalOverlay}>
-    <div style={modalBox}>
-      {modal.type === 'success' ? (
-        // Success screen
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-            {modal.tradeType === 'buy' ? '🎉' : '✅'}
-          </div>
-          <h3 style={{ marginBottom: '0.75rem', color: '#00d09c' }}>
-            {modal.tradeType === 'buy' ? 'Purchase Successful!' : 'Sale Successful!'}
-          </h3>
-          <p style={{ color: '#aaa', marginBottom: '1.5rem', lineHeight: '1.6' }}>
-            {modal.message}
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button style={buyBtn} onClick={() => navigate('/portfolio')}>
-              View Portfolio
-            </button>
-            <button style={cancelBtn} onClick={() => setModal(null)}>
-              Continue Trading
-            </button>
+        <div style={modalOverlay}>
+          <div style={modalBox}>
+            {modal.type === 'success' ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+                  {modal.tradeType === 'buy' ? '🎉' : '✅'}
+                </div>
+                <h3 style={{ marginBottom: '0.75rem', color: '#00d09c' }}>
+                  {modal.tradeType === 'buy' ? 'Purchase Successful!' : 'Sale Successful!'}
+                </h3>
+                <p style={{ color: '#aaa', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                  {modal.message}
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button style={buyBtn} onClick={() => navigate('/portfolio')}>View Portfolio</button>
+                  <button style={cancelBtn} onClick={() => setModal(null)}>Continue Trading</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ marginBottom: '1rem' }}>{modal === 'buy' ? 'Buy' : 'Sell'} {quote.symbol}</h3>
+                <p style={{ color: '#888', marginBottom: '1rem' }}>Current Price: ₹{livePrice?.toFixed(2)}</p>
+                <input
+                  type="number" min="1" value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  style={modalInput} placeholder="Quantity"
+                />
+                <p style={{ color: '#aaa', marginBottom: '1rem' }}>
+                  Total: ₹{(livePrice * quantity).toFixed(2)}
+                </p>
+                {tradeMsg && <p style={{ color: '#ff4444', marginBottom: '1rem' }}>{tradeMsg}</p>}
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button
+                    style={modal === 'buy' ? buyBtn : sellBtn}
+                    onClick={handleTrade}
+                    disabled={tradeLoading}
+                  >
+                    {tradeLoading ? 'Processing...' : `Confirm ${modal === 'buy' ? 'Buy' : 'Sell'}`}
+                  </button>
+                  <button style={cancelBtn} onClick={() => setModal(null)}>Cancel</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      ) : (
-        // Trade entry screen
-        <>
-          <h3 style={{ marginBottom: '1rem' }}>{modal === 'buy' ? 'Buy' : 'Sell'} {quote.symbol}</h3>
-          <p style={{ color: '#888', marginBottom: '1rem' }}>Current Price: ₹{quote.price?.toFixed(2)}</p>
-          <input
-            type="number" min="1" value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            style={modalInput} placeholder="Quantity"
-          />
-          <p style={{ color: '#aaa', marginBottom: '1rem' }}>
-            Total: ₹{(quote.price * quantity).toFixed(2)}
-          </p>
-          {tradeMsg && (
-            <p style={{ color: '#ff4444', marginBottom: '1rem' }}>{tradeMsg}</p>
-          )}
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button
-              style={modal === 'buy' ? buyBtn : sellBtn}
-              onClick={handleTrade}
-              disabled={tradeLoading}
-            >
-              {tradeLoading ? 'Processing...' : `Confirm ${modal === 'buy' ? 'Buy' : 'Sell'}`}
-            </button>
-            <button style={cancelBtn} onClick={() => setModal(null)}>Cancel</button>
-          </div>
-        </>
       )}
-    </div>
-  </div>
-)}
 
       {/* Essential Stats */}
       <div style={section}>
@@ -307,12 +278,9 @@ useEffect(() => {
             </div>
           ))}
         </div>
-
-        {/* More Details Toggle */}
         <button style={toggleBtn} onClick={() => setShowMoreStats(!showMoreStats)}>
           {showMoreStats ? '▲ Hide Details' : '▼ More Details'}
         </button>
-
         {showMoreStats && (
           <div style={{ ...statsGrid, marginTop: '1rem' }}>
             {moreStats.map((stat) => (
@@ -337,13 +305,10 @@ useEffect(() => {
           <h2 style={sectionTitle}>Price History</h2>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {RANGES.map((r) => (
-              <button key={r} style={r === range ? activeRangeBtn : rangeBtn} onClick={() => setRange(r)}>
-                {r}
-              </button>
+              <button key={r} style={r === range ? activeRangeBtn : rangeBtn} onClick={() => setRange(r)}>{r}</button>
             ))}
           </div>
         </div>
-
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={history}>
             <defs>
@@ -372,10 +337,8 @@ useEffect(() => {
             {showNews ? '▲ Hide' : '▼ Show'}
           </button>
         </div>
-
         {showNews && (
           <>
-            {/* Sentiment Filter */}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               {['ALL', 'POSITIVE', 'NEGATIVE', 'NEUTRAL'].map((f) => (
                 <button
@@ -401,8 +364,6 @@ useEffect(() => {
                 </button>
               ))}
             </div>
-
-            {/* News 3 column grid */}
             {newsLoading ? (
               <p style={{ color: '#888' }}>Loading news...</p>
             ) : filteredNews.length === 0 ? (
@@ -412,12 +373,7 @@ useEffect(() => {
                 {filteredNews.map((article, i) => (
                   <a key={i} href={article.url} target="_blank" rel="noreferrer" style={newsCard}>
                     {article.urlToImage && (
-                      <img
-                        src={article.urlToImage}
-                        alt=""
-                        style={newsImage}
-                        onError={(e) => e.target.style.display = 'none'}
-                      />
+                      <img src={article.urlToImage} alt="" style={newsImage} onError={(e) => e.target.style.display = 'none'} />
                     )}
                     <div style={{ padding: '0.75rem' }}>
                       <span style={{

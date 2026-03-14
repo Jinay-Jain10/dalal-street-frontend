@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import useAuthStore from '../store/authStore';
+import usePriceStore from '../store/priceStore';
 
 const BattleDetail = () => {
   const { id } = useParams();
@@ -13,7 +14,6 @@ const BattleDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('leaderboard');
-  const [lastUpdated, setLastUpdated] = useState(null);
 
   // Trade state
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,7 +24,6 @@ const BattleDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [tradeLoading, setTradeLoading] = useState(false);
   const [tradeMsg, setTradeMsg] = useState('');
-  const [tradeType, setTradeType] = useState('buy');
 
   // Sell state
   const [sellSymbol, setSellSymbol] = useState('');
@@ -38,14 +37,19 @@ const BattleDetail = () => {
   const debounceRef = useRef(null);
   const dropdownRef = useRef(null);
 
+  const { prices, subscribe, unsubscribe, lastUpdated } = usePriceStore();
+
   useEffect(() => {
     init();
-    const interval = setInterval(() => {
-      fetchLeaderboard(true);
-      fetchPortfolio(true);
-    }, 30000);
-    return () => clearInterval(interval);
   }, [id]);
+
+  // Subscribe portfolio holding symbols to price store
+  useEffect(() => {
+    if (!portfolio || portfolio.holdings.length === 0) return;
+    const symbols = portfolio.holdings.map((h) => h.symbol);
+    subscribe(symbols);
+    return () => unsubscribe(symbols);
+  }, [portfolio]);
 
   // Countdown timer
   useEffect(() => {
@@ -75,22 +79,20 @@ const BattleDetail = () => {
 
   const init = async () => {
     setLoading(true);
-    await Promise.all([fetchLeaderboard(false), fetchPortfolio(false)]);
+    await Promise.all([fetchLeaderboard(), fetchPortfolio()]);
     setLoading(false);
   };
 
-  const fetchLeaderboard = async (silent = false) => {
+  const fetchLeaderboard = async () => {
     try {
       const res = await api.get(`/battles/${id}/leaderboard`);
       setLeaderboard(res.data);
-      if (!silent) setLastUpdated(new Date().toLocaleTimeString('en-IN'));
-      else setLastUpdated(new Date().toLocaleTimeString('en-IN'));
     } catch (err) {
       setError('Failed to load battle');
     }
   };
 
-  const fetchPortfolio = async (silent = false) => {
+  const fetchPortfolio = async () => {
     try {
       const res = await api.get(`/battles/${id}/portfolio`);
       setPortfolio(res.data);
@@ -102,7 +104,7 @@ const BattleDetail = () => {
   const handleStartBattle = async () => {
     try {
       await api.post(`/battles/${id}/start`);
-      fetchLeaderboard(false);
+      fetchLeaderboard();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to start battle');
     }
@@ -129,6 +131,8 @@ const BattleDetail = () => {
     try {
       const res = await api.get(`/stocks/${stock.symbol}`);
       setSelectedStock({ ...stock, price: res.data.data.price });
+      // also subscribe this symbol so price stays live
+      subscribe([stock.symbol]);
     } catch {
       setSelectedStock(stock);
     }
@@ -148,8 +152,8 @@ const BattleDetail = () => {
       setSelectedStock(null);
       setSearchQuery('');
       setQuantity(1);
-      fetchPortfolio(true);
-      fetchLeaderboard(true);
+      await fetchPortfolio();
+      await fetchLeaderboard();
     } catch (err) {
       setTradeMsg(err.response?.data?.message || 'Trade failed');
     } finally {
@@ -169,8 +173,8 @@ const BattleDetail = () => {
       setSellMsg(res.data.message);
       setSellSymbol('');
       setSellQuantity(1);
-      fetchPortfolio(true);
-      fetchLeaderboard(true);
+      await fetchPortfolio();
+      await fetchLeaderboard();
     } catch (err) {
       setSellMsg(err.response?.data?.message || 'Sell failed');
     } finally {
@@ -188,6 +192,25 @@ const BattleDetail = () => {
   const isWaiting = group.status === 'waiting';
   const isEnded = group.status === 'ended';
 
+  // Calculate live holdings using price store
+  const holdingsWithLivePrices = portfolio?.holdings?.map((h) => {
+    const livePrice = prices[h.symbol]?.price || parseFloat(h.current_price);
+    const currentValue = livePrice * h.quantity;
+    const totalInvested = parseFloat(h.avg_buy_price) * h.quantity;
+    const pnl = currentValue - totalInvested;
+    return { ...h, live_price: livePrice, live_current_value: currentValue, live_pnl: pnl };
+  }) || [];
+
+  // Live selected stock price from store
+  const liveSelectedPrice = selectedStock
+    ? (prices[selectedStock.symbol]?.price || selectedStock.price)
+    : null;
+
+  // Live sell price from store
+  const liveSellPrice = sellSymbol
+    ? (prices[sellSymbol]?.price || portfolio?.holdings?.find(h => h.symbol === sellSymbol)?.current_price || 0)
+    : 0;
+
   return (
     <div style={container}>
 
@@ -203,13 +226,9 @@ const BattleDetail = () => {
           {lastUpdated && <p style={{ color: '#555', fontSize: '0.75rem' }}>Last updated: {lastUpdated}</p>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          {isActive && (
-            <div style={countdown}>⏱ {timeLeft}</div>
-          )}
+          {isActive && <div style={countdown}>⏱ {timeLeft}</div>}
           {isWaiting && group.is_creator && (
-            <button style={startBtn} onClick={handleStartBattle}>
-              🚀 Start Battle
-            </button>
+            <button style={startBtn} onClick={handleStartBattle}>🚀 Start Battle</button>
           )}
           {isWaiting && (
             <div style={inviteCodeBox}>
@@ -266,7 +285,6 @@ const BattleDetail = () => {
       {/* Active / Ended Battle */}
       {(isActive || isEnded) && (
         <>
-          {/* Tabs */}
           <div style={tabRow}>
             {['leaderboard', 'trade', 'holdings'].map((tab) => (
               <button
@@ -304,16 +322,10 @@ const BattleDetail = () => {
                         <td style={td}>
                           <span style={rankBadge(r.rank)}>{r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `#${r.rank}`}</span>
                         </td>
-                        <td style={td}>
-                          {r.name} {r.is_you && <span style={{ color: '#888', fontSize: '0.8rem' }}>(You)</span>}
-                        </td>
+                        <td style={td}>{r.name} {r.is_you && <span style={{ color: '#888', fontSize: '0.8rem' }}>(You)</span>}</td>
                         <td style={td}>₹{parseFloat(r.total_value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        <td style={{ ...td, color: pnlColor }}>
-                          {pnl >= 0 ? '+' : ''}₹{Math.abs(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ ...td, color: pnlColor }}>
-                          {pnl >= 0 ? '▲' : '▼'} {Math.abs(parseFloat(r.pnl_percent))}%
-                        </td>
+                        <td style={{ ...td, color: pnlColor }}>{pnl >= 0 ? '+' : ''}₹{Math.abs(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ ...td, color: pnlColor }}>{pnl >= 0 ? '▲' : '▼'} {Math.abs(parseFloat(r.pnl_percent))}%</td>
                       </tr>
                     );
                   })}
@@ -325,7 +337,6 @@ const BattleDetail = () => {
           {/* Trade Tab */}
           {activeTab === 'trade' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-
               {/* Buy */}
               <div style={section}>
                 <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>💚 Buy Stock</h3>
@@ -357,18 +368,16 @@ const BattleDetail = () => {
                         </div>
                       )}
                     </div>
-
                     {selectedStock && (
                       <div style={selectedStockBox}>
-                        <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{selectedStock.name}</div>
-                        <button
-        style={viewStockBtn}
-        onClick={() => window.open(`/stock/${encodeURIComponent(selectedStock.symbol)}`, '_blank')}
-      >
-        View Stock ↗
-      </button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+                          <div style={{ fontWeight: 'bold' }}>{selectedStock.name}</div>
+                          <button style={viewStockBtn} onClick={() => window.open(`/stock/${encodeURIComponent(selectedStock.symbol)}`, '_blank')}>
+                            View Stock ↗
+                          </button>
+                        </div>
                         <div style={{ color: '#00d09c', fontSize: '1.1rem', marginBottom: '0.75rem' }}>
-                          ₹{selectedStock.price?.toFixed(2) || 'Loading...'}
+                          ₹{liveSelectedPrice?.toFixed(2) || 'Loading...'}
                         </div>
                         <input
                           type="number" min="1" value={quantity}
@@ -376,9 +385,9 @@ const BattleDetail = () => {
                           style={{ ...input, marginBottom: '0.5rem' }}
                           placeholder="Quantity"
                         />
-                        {selectedStock.price && (
+                        {liveSelectedPrice && (
                           <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                            Total: ₹{(selectedStock.price * quantity).toFixed(2)}
+                            Total: ₹{(liveSelectedPrice * quantity).toFixed(2)}
                           </p>
                         )}
                         <button style={buyBtn} onClick={handleBuy} disabled={tradeLoading}>
@@ -400,19 +409,15 @@ const BattleDetail = () => {
                 <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>🔴 Sell Stock</h3>
                 {isEnded ? (
                   <p style={{ color: '#888' }}>Battle has ended. Trading is closed.</p>
-                ) : portfolio?.holdings?.length === 0 ? (
+                ) : holdingsWithLivePrices.length === 0 ? (
                   <p style={{ color: '#888' }}>You have no holdings to sell.</p>
                 ) : (
                   <>
-                    <select
-                      style={input}
-                      value={sellSymbol}
-                      onChange={(e) => setSellSymbol(e.target.value)}
-                    >
+                    <select style={input} value={sellSymbol} onChange={(e) => setSellSymbol(e.target.value)}>
                       <option value="">Select a stock to sell</option>
-                      {portfolio?.holdings?.map((h) => (
+                      {holdingsWithLivePrices.map((h) => (
                         <option key={h.symbol} value={h.symbol}>
-                          {h.symbol} — {h.quantity} shares @ ₹{h.current_price?.toFixed(2)}
+                          {h.symbol} — {h.quantity} shares @ ₹{h.live_price?.toFixed(2)}
                         </option>
                       ))}
                     </select>
@@ -421,9 +426,9 @@ const BattleDetail = () => {
                       onChange={(e) => setSellQuantity(e.target.value)}
                       style={input} placeholder="Quantity to sell"
                     />
-                    {sellSymbol && portfolio?.holdings && (
+                    {sellSymbol && (
                       <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                        Total: ₹{((portfolio.holdings.find(h => h.symbol === sellSymbol)?.current_price || 0) * sellQuantity).toFixed(2)}
+                        Total: ₹{(liveSellPrice * sellQuantity).toFixed(2)}
                       </p>
                     )}
                     <button style={sellBtn} onClick={handleSell} disabled={sellLoading}>
@@ -444,7 +449,7 @@ const BattleDetail = () => {
           {activeTab === 'holdings' && (
             <div style={section}>
               <h2 style={sectionTitle}>My Battle Holdings</h2>
-              {!portfolio || portfolio.holdings.length === 0 ? (
+              {holdingsWithLivePrices.length === 0 ? (
                 <p style={{ color: '#888', padding: '1rem 0' }}>No holdings yet. Go to the Trade tab to buy stocks.</p>
               ) : (
                 <table style={table}>
@@ -456,9 +461,8 @@ const BattleDetail = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {portfolio.holdings.map((h) => {
-                      const pnl = parseFloat(h.pnl);
-                      const color = pnl >= 0 ? '#00d09c' : '#ff4444';
+                    {holdingsWithLivePrices.map((h) => {
+                      const color = h.live_pnl >= 0 ? '#00d09c' : '#ff4444';
                       return (
                         <tr key={h.symbol} style={tr}>
                           <td style={td}>
@@ -467,9 +471,9 @@ const BattleDetail = () => {
                           </td>
                           <td style={td}>{h.quantity}</td>
                           <td style={td}>₹{parseFloat(h.avg_buy_price).toFixed(2)}</td>
-                          <td style={td}>₹{parseFloat(h.current_price).toFixed(2)}</td>
-                          <td style={td}>₹{parseFloat(h.current_value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                          <td style={{ ...td, color }}>{pnl >= 0 ? '+' : ''}₹{Math.abs(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td style={td}>₹{h.live_price?.toFixed(2)}</td>
+                          <td style={td}>₹{h.live_current_value?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td style={{ ...td, color }}>{h.live_pnl >= 0 ? '+' : ''}₹{Math.abs(h.live_pnl).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         </tr>
                       );
                     })}
@@ -489,11 +493,7 @@ const statusStyle = (status) => {
   if (status === 'active') return { background: '#ff000022', color: '#ff4444' };
   return { background: '#88888822', color: '#888' };
 };
-
-const rankBadge = (rank) => ({
-  fontSize: rank <= 3 ? '1.2rem' : '0.9rem',
-});
-
+const rankBadge = (rank) => ({ fontSize: rank <= 3 ? '1.2rem' : '0.9rem' });
 const container = { maxWidth: '1100px', margin: '0 auto', padding: '2rem' };
 const centered = { textAlign: 'center', padding: '4rem', color: '#888' };
 const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' };

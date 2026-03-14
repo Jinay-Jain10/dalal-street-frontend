@@ -1,18 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import usePriceStore from '../store/priceStore';
 
 const Watchlist = () => {
   const navigate = useNavigate();
   const [watchlist, setWatchlist] = useState([]);
-  const [prices, setPrices] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const debounceRef = useState(null);
+  const debounceRef = useRef(null);
+
+  const { prices, subscribe, unsubscribe,lastUpdated } = usePriceStore();
 
   useEffect(() => {
     fetchWatchlist();
@@ -20,11 +21,9 @@ const Watchlist = () => {
 
   useEffect(() => {
     if (watchlist.length === 0) return;
-    const interval = setInterval(() => {
-      fetchLivePrices(watchlist);
-    }, 30000);
-  
-    return () => clearInterval(interval);
+    const symbols = watchlist.map((s) => s.symbol);
+    subscribe(symbols);
+    return () => unsubscribe(symbols);
   }, [watchlist]);
 
   const fetchWatchlist = async () => {
@@ -32,28 +31,11 @@ const Watchlist = () => {
     try {
       const res = await api.get('/watchlist');
       setWatchlist(res.data.watchlist);
-      fetchLivePrices(res.data.watchlist);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchLivePrices = async (list) => {
-    const priceMap = {};
-    await Promise.all(
-      list.map(async (item) => {
-        try {
-          const res = await api.get(`/stocks/${item.symbol}`);
-          priceMap[item.symbol] = res.data.data;
-        } catch {
-          priceMap[item.symbol] = null;
-        }
-      })
-    );
-    setPrices(priceMap);
-    setLastUpdated(new Date().toLocaleTimeString('en-IN'));
   };
 
   const handleSearch = async (value) => {
@@ -86,8 +68,8 @@ const Watchlist = () => {
   const removeFromWatchlist = async (symbol) => {
     try {
       await api.delete(`/watchlist/${symbol}`);
+      unsubscribe([symbol]);
       setWatchlist((prev) => prev.filter((w) => w.symbol !== symbol));
-      setPrices((prev) => { const p = { ...prev }; delete p[symbol]; return p; });
     } catch (err) {
       console.error(err);
     }
@@ -97,13 +79,15 @@ const Watchlist = () => {
 
   return (
     <div style={container}>
-      <h1 style={pageTitle}>My Watchlist</h1>
-
-      {lastUpdated && (
-  <p style={{ color: '#555', fontSize: '0.8rem', marginBottom: '1rem', marginTop: '-1rem' }}>
-    Last updated: {lastUpdated}
-  </p>
-)}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h1 style={pageTitle}>My Watchlist</h1>
+        
+        {prices && Object.keys(prices).length > 0 && (
+          <p style={{ color: '#555', fontSize: '0.8rem' }}>
+            Last updated: {new Date().toLocaleTimeString('en-IN')}
+          </p>
+        )}
+      </div>
 
       {/* Search to add */}
       <div style={{ position: 'relative', maxWidth: '500px', marginBottom: '2rem' }}>
@@ -115,7 +99,6 @@ const Watchlist = () => {
           onChange={(e) => handleSearch(e.target.value)}
         />
         {searchLoading && <span style={spinner}>⏳</span>}
-
         {showDropdown && searchResults.length > 0 && (
           <div style={dropdown}>
             {searchResults.map((stock) => (
@@ -155,7 +138,6 @@ const Watchlist = () => {
                 const q = prices[item.symbol];
                 const isPositive = q?.change >= 0;
                 const changeColor = isPositive ? '#00d09c' : '#ff4444';
-
                 return (
                   <tr
                     key={item.symbol}
@@ -166,9 +148,7 @@ const Watchlist = () => {
                       <div style={{ color: '#00d09c', fontWeight: 'bold' }}>{item.symbol}</div>
                       <div style={{ color: '#666', fontSize: '0.8rem' }}>{item.company_name}</div>
                     </td>
-                    <td style={td}>
-                      {q ? `₹${q.price?.toFixed(2)}` : '—'}
-                    </td>
+                    <td style={td}>{q ? `₹${q.price?.toFixed(2)}` : '—'}</td>
                     <td style={{ ...td, color: changeColor }}>
                       {q ? `${isPositive ? '▲' : '▼'} ${Math.abs(q.changePercent)?.toFixed(2)}%` : '—'}
                     </td>
@@ -176,12 +156,7 @@ const Watchlist = () => {
                     <td style={td}>{q ? `₹${q.low?.toFixed(2)}` : '—'}</td>
                     <td style={td}>{q ? q.volume?.toLocaleString('en-IN') : '—'}</td>
                     <td style={td} onClick={(e) => e.stopPropagation()}>
-                      <button
-                        style={removeBtn}
-                        onClick={() => removeFromWatchlist(item.symbol)}
-                      >
-                        ✕
-                      </button>
+                      <button style={removeBtn} onClick={() => removeFromWatchlist(item.symbol)}>✕</button>
                     </td>
                   </tr>
                 );
@@ -196,7 +171,7 @@ const Watchlist = () => {
 
 const container = { maxWidth: '1100px', margin: '0 auto', padding: '2rem' };
 const centered = { textAlign: 'center', padding: '4rem', color: '#888' };
-const pageTitle = { fontSize: '1.8rem', fontWeight: 'bold', marginBottom: '1.5rem' };
+const pageTitle = { fontSize: '1.8rem', fontWeight: 'bold' };
 const searchInput = { width: '100%', padding: '0.85rem 1rem', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#e0e0e0', fontSize: '0.95rem' };
 const spinner = { position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)' };
 const dropdown = { position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', zIndex: 100, maxHeight: '280px', overflowY: 'auto' };
