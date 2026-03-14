@@ -58,7 +58,7 @@ const usePriceStore = create((set, get) => ({
   startPolling: () => {
     const { fetchPrices } = get();
     fetchPrices(); // immediate first fetch
-    const intervalId = setInterval(fetchPrices, 30000);
+    const intervalId = setInterval(fetchPrices, 150000);
     set({ intervalId });
   },
 
