@@ -31,6 +31,12 @@ const BattleDetail = () => {
 
   const [timeLeft, setTimeLeft] = useState('');
 
+  // Chat state
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const chatBottomRef = useRef(null);
+
   const debounceRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -38,15 +44,24 @@ const BattleDetail = () => {
 
   useEffect(() => {
     init();
-    const interval = setInterval(async () => {
+    const leaderboardInterval = setInterval(async () => {
       try {
         const res = await api.get(`/battles/${id}/leaderboard`);
         setLeaderboard(res.data);
       } catch (err) {
         console.error(err);
       }
-    }, 30 * 60 * 1000); // 30 minutes
-    return () => clearInterval(interval);
+    }, 30 * 60 * 1000);
+
+    // Poll chat every 30 seconds
+    const chatInterval = setInterval(() => {
+      fetchMessages(true);
+    }, 30000);
+
+    return () => {
+      clearInterval(leaderboardInterval);
+      clearInterval(chatInterval);
+    };
   }, [id]);
 
   useEffect(() => {
@@ -80,9 +95,16 @@ const BattleDetail = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Auto scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeTab]);
+
   const init = async () => {
     setLoading(true);
-    await Promise.all([fetchLeaderboard(), fetchPortfolio()]);
+    await Promise.all([fetchLeaderboard(), fetchPortfolio(), fetchMessages(false)]);
     setLoading(false);
   };
 
@@ -101,6 +123,32 @@ const BattleDetail = () => {
       setPortfolio(res.data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchMessages = async (silent = false) => {
+    try {
+      const res = await api.get(`/battles/${id}/messages`);
+      setMessages(res.data.messages);
+      if (!silent) {
+        setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+    setSendingMessage(true);
+    try {
+      await api.post(`/battles/${id}/messages`, { message: newMessage });
+      setNewMessage('');
+      await fetchMessages(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -182,6 +230,19 @@ const BattleDetail = () => {
     } finally {
       setSellLoading(false);
     }
+  };
+
+  const formatTime = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    if (isToday) return formatTime(dateStr);
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' ' + formatTime(dateStr);
   };
 
   if (loading) return <div style={centered}>Loading battle...</div>;
@@ -270,7 +331,7 @@ const BattleDetail = () => {
               ? 'Share the invite code with friends. You need at least 2 members to start.'
               : 'Waiting for the creator to start the battle.'}
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
             {rankings.map((r) => (
               <div key={r.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: '#0f0f0f', borderRadius: '8px', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span>{r.is_you ? `${r.name} (You)` : r.name}</span>
@@ -278,6 +339,18 @@ const BattleDetail = () => {
               </div>
             ))}
           </div>
+          {/* Chat in waiting room too */}
+          <ChatPanel
+            messages={messages}
+            newMessage={newMessage}
+            setNewMessage={setNewMessage}
+            handleSendMessage={handleSendMessage}
+            sendingMessage={sendingMessage}
+            chatBottomRef={chatBottomRef}
+            formatDate={formatDate}
+            currentUserId={user?.id}
+            isEnded={false}
+          />
         </div>
       )}
 
@@ -285,13 +358,16 @@ const BattleDetail = () => {
       {(isActive || isEnded) && (
         <>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            {['leaderboard', 'trade', 'holdings'].map((tab) => (
+            {['leaderboard', 'trade', 'holdings', 'chat'].map((tab) => (
               <button
                 key={tab}
                 style={activeTab === tab ? activeTabBtn : tabBtn}
                 onClick={() => setActiveTab(tab)}
               >
-                {tab === 'leaderboard' ? '🏆 Leaderboard' : tab === 'trade' ? '💹 Trade' : '📊 Holdings'}
+                {tab === 'leaderboard' ? '🏆 Leaderboard'
+                  : tab === 'trade' ? '💹 Trade'
+                  : tab === 'holdings' ? '📊 Holdings'
+                  : `💬 Chat${messages.length > 0 ? ` (${messages.length})` : ''}`}
               </button>
             ))}
           </div>
@@ -340,7 +416,6 @@ const BattleDetail = () => {
           {/* Trade Tab */}
           {activeTab === 'trade' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-              {/* Buy */}
               <div style={section}>
                 <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>💚 Buy Stock</h3>
                 {isEnded ? (
@@ -402,7 +477,6 @@ const BattleDetail = () => {
                 )}
               </div>
 
-              {/* Sell */}
               <div style={section}>
                 <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>🔴 Sell Stock</h3>
                 {isEnded ? (
@@ -478,6 +552,119 @@ const BattleDetail = () => {
               )}
             </div>
           )}
+
+          {/* Chat Tab */}
+          {activeTab === 'chat' && (
+            <div style={section}>
+              <h2 style={{ ...sectionTitle, marginBottom: '1rem' }}>💬 Battle Chat</h2>
+              <ChatPanel
+                messages={messages}
+                newMessage={newMessage}
+                setNewMessage={setNewMessage}
+                handleSendMessage={handleSendMessage}
+                sendingMessage={sendingMessage}
+                chatBottomRef={chatBottomRef}
+                formatDate={formatDate}
+                currentUserId={user?.id}
+                isEnded={isEnded}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// Chat Panel Component
+const ChatPanel = ({ messages, newMessage, setNewMessage, handleSendMessage, sendingMessage, chatBottomRef, formatDate, currentUserId, isEnded }) => {
+  return (
+    <div>
+      {/* Messages */}
+      <div style={{
+        height: '350px',
+        overflowY: 'auto',
+        background: '#0f0f0f',
+        borderRadius: '8px',
+        padding: '1rem',
+        marginBottom: '0.75rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.75rem',
+      }}>
+        {messages.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#555', margin: 'auto' }}>
+            <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💬</p>
+            <p style={{ fontSize: '0.9rem' }}>No messages yet</p>
+            <p style={{ fontSize: '0.8rem', color: '#444' }}>Be the first to say something!</p>
+          </div>
+        ) : (
+          messages.map((msg) => {
+            const isMe = msg.User?.id === currentUserId;
+            return (
+              <div
+                key={msg.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: isMe ? 'flex-end' : 'flex-start',
+                }}
+              >
+                {!isMe && (
+                  <span style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.2rem', paddingLeft: '0.5rem' }}>
+                    {msg.User?.name}
+                  </span>
+                )}
+                <div style={{
+                  maxWidth: '75%',
+                  padding: '0.5rem 0.85rem',
+                  borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  background: isMe ? '#00d09c22' : '#1a1a1a',
+                  border: isMe ? '1px solid #00d09c44' : '1px solid #2a2a2a',
+                  color: '#e0e0e0',
+                  fontSize: '0.9rem',
+                  lineHeight: '1.4',
+                  wordBreak: 'break-word',
+                }}>
+                  {msg.message}
+                </div>
+                <span style={{ fontSize: '0.7rem', color: '#444', marginTop: '0.2rem', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+                  {formatDate(msg.createdAt)}
+                </span>
+              </div>
+            );
+          })
+        )}
+        <div ref={chatBottomRef} />
+      </div>
+
+       {/* Input */}
+       {isEnded ? (
+        <div style={{ textAlign: 'center', color: '#555', fontSize: '0.85rem', padding: '0.75rem', background: '#0f0f0f', borderRadius: '8px' }}>
+          Battle has ended — chat is read only
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              style={{ flex: 1, padding: '0.75rem 1rem', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#e0e0e0', fontSize: '0.95rem', outline: 'none' }}
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+              maxLength={500}
+            />
+            <button
+              style={{ padding: '0.75rem 1.25rem', background: newMessage.trim() ? '#00d09c' : '#1a1a1a', color: newMessage.trim() ? '#000' : '#555', border: '1px solid #2a2a2a', borderRadius: '8px', fontWeight: 'bold', cursor: newMessage.trim() ? 'pointer' : 'default', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+              onClick={handleSendMessage}
+              disabled={sendingMessage || !newMessage.trim()}
+            >
+              {sendingMessage ? '...' : 'Send'}
+            </button>
+          </div>
+          <div style={{ textAlign: 'right', color: '#444', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+            {newMessage.length}/500
+          </div>
         </>
       )}
     </div>

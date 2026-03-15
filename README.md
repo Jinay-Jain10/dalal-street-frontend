@@ -50,6 +50,7 @@ The core differentiator- no other free Indian stock market simulator has this.
 - **Battle auto-ends** when duration expires, leaderboard freezes at final prices
 - **Past battles** archived separately so you can look back at results
 - **Creator controls**- start battle once minimum members joined, delete waiting battles
+- **Battle Chat**- Group chat inside every battle, available from the waiting room through to the end. Messages poll every 30 seconds. Chat is read-only once a battle ends.
 
 ### Stock Market
 - Live Nifty 50 and Bank Nifty indices on home page
