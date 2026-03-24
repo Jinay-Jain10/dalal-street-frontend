@@ -73,7 +73,7 @@ const Home = () => {
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
         <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 'bold', marginBottom: '0.75rem' }}>
-          Dalal Street 🏦
+          Dalal Street
         </h1>
         <p style={{ color: '#888', fontSize: 'clamp(0.85rem, 2vw, 1rem)', marginBottom: '2rem', lineHeight: '1.6' }}>
           Trade NSE stocks with ₹1,00,000 virtual money. Track live prices, read AI-powered news sentiment, and compete with friends.
@@ -159,7 +159,7 @@ const Home = () => {
 
             {/* Top Gainers */}
             <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#00d09c' }}>🚀 Top Gainers</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#00d09c' }}>Top Gainers</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
@@ -191,7 +191,7 @@ const Home = () => {
 
             {/* Top Losers */}
             <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#ff4444' }}>📉 Top Losers</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#ff4444' }}>Top Losers</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>

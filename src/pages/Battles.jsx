@@ -179,10 +179,10 @@ const Battles = () => {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <button style={activeTab === 'active' ? activeTabBtn : tabBtn} onClick={() => setActiveTab('active')}>
-          ⚔️ Active {activeBattles.length > 0 && `(${activeBattles.length})`}
+          Active {activeBattles.length > 0 && `(${activeBattles.length})`}
         </button>
         <button style={activeTab === 'past' ? activeTabBtn : tabBtn} onClick={() => setActiveTab('past')}>
-          🏁 Past {pastBattles.length > 0 && `(${pastBattles.length})`}
+          Past {pastBattles.length > 0 && `(${pastBattles.length})`}
         </button>
       </div>
 

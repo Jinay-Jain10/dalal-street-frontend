@@ -288,7 +288,7 @@ const BattleDetail = () => {
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           {isActive && <div style={{ fontSize: 'clamp(1.1rem, 3vw, 1.5rem)', fontWeight: 'bold', color: '#f0c040', marginBottom: '0.5rem' }}>⏱ {timeLeft}</div>}
           {isWaiting && group.is_creator && (
-            <button style={startBtn} onClick={handleStartBattle}>🚀 Start Battle</button>
+            <button style={startBtn} onClick={handleStartBattle}>Start Battle</button>
           )}
           {isWaiting && (
             <div style={{ marginTop: '0.5rem', color: '#888', fontSize: '0.85rem' }}>
@@ -364,10 +364,10 @@ const BattleDetail = () => {
                 style={activeTab === tab ? activeTabBtn : tabBtn}
                 onClick={() => setActiveTab(tab)}
               >
-                {tab === 'leaderboard' ? '🏆 Leaderboard'
-                  : tab === 'trade' ? '💹 Trade'
-                  : tab === 'holdings' ? '📊 Holdings'
-                  : `💬 Chat${messages.length > 0 ? ` (${messages.length})` : ''}`}
+                {tab === 'leaderboard' ? 'Leaderboard'
+                  : tab === 'trade' ? 'Trade'
+                  : tab === 'holdings' ? 'Holdings'
+                  : `Chat${messages.length > 0 ? ` (${messages.length})` : ''}`}
               </button>
             ))}
           </div>
@@ -377,7 +377,7 @@ const BattleDetail = () => {
             <div style={section}>
               {isEnded && (
                 <div style={{ background: '#1a2a1a', border: '1px solid #00d09c44', borderRadius: '8px', padding: '1rem', marginBottom: '1rem', color: '#00d09c', fontWeight: 'bold', textAlign: 'center' }}>
-                  🏆 Winner: {rankings[0]?.name} with ₹{parseFloat(rankings[0]?.total_value).toLocaleString('en-IN')}
+                  Winner: {rankings[0]?.name} with ₹{parseFloat(rankings[0]?.total_value).toLocaleString('en-IN')}
                 </div>
               )}
               <div style={{ overflowX: 'auto' }}>
@@ -417,7 +417,7 @@ const BattleDetail = () => {
           {activeTab === 'trade' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               <div style={section}>
-                <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>💚 Buy Stock</h3>
+                <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>Buy Stock</h3>
                 {isEnded ? (
                   <p style={{ color: '#888' }}>Battle has ended. Trading is closed.</p>
                 ) : (
@@ -478,7 +478,7 @@ const BattleDetail = () => {
               </div>
 
               <div style={section}>
-                <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>🔴 Sell Stock</h3>
+                <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}>Sell Stock</h3>
                 {isEnded ? (
                   <p style={{ color: '#888' }}>Battle has ended. Trading is closed.</p>
                 ) : holdingsWithLivePrices.length === 0 ? (
@@ -556,7 +556,7 @@ const BattleDetail = () => {
           {/* Chat Tab */}
           {activeTab === 'chat' && (
             <div style={section}>
-              <h2 style={{ ...sectionTitle, marginBottom: '1rem' }}>💬 Battle Chat</h2>
+              <h2 style={{ ...sectionTitle, marginBottom: '1rem' }}>Battle Chat</h2>
               <ChatPanel
                 messages={messages}
                 newMessage={newMessage}
