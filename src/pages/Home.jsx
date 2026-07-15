@@ -158,7 +158,7 @@ const Home = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
 
             {/* Top Gainers */}
-            <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
+            {/* <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#00d09c' }}>Top Gainers</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -187,10 +187,10 @@ const Home = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div> */}
 
             {/* Top Losers */}
-            <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
+            {/* <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '1.25rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: '#ff4444' }}>Top Losers</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -219,7 +219,7 @@ const Home = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div> */}
           </div>
 
           {/* Market Status */}
